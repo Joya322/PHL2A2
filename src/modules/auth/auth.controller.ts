@@ -5,17 +5,30 @@ import { authService } from "./auth.service";
 const signupUser = async (req: Request, res: Response) => {
   try {
     const result = await authService.signupUserIntoDB(req.body);
-  } catch (error) {
-    console.log(error);
+
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      data: result.rows[0],
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      error: error,
+    });
   }
 };
 
 // login user
 const loginUser = async (req: Request, res: Response) => {
   try {
-    const result = await authService.loginUserIntoDB(req.body);
-  } catch (error) {
-    console.log(error);
+    // const result = await authService.signupUserIntoDB(req.body);
+  } catch (error: any) {
+    res.status(500).json({
+      message: error.message,
+      error: error,
+    });
   }
 };
 
