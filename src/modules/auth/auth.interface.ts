@@ -1,3 +1,4 @@
+// types of signup body
 export interface IUserSignUp {
   name: string;
   email: string;
@@ -5,6 +6,7 @@ export interface IUserSignUp {
   role: string;
 }
 
+// types of login body
 export interface IUserLogin {
   email: string;
   password: string;

@@ -63,7 +63,7 @@ const loginUserIntoDB = async (payload: IUserLogin) => {
 
   // console.log(user);
 
-  return { token:accessToken, user:jwtPayload };
+  return { token: accessToken, user: jwtPayload };
 };
 
 export const authService = {
