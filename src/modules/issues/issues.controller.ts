@@ -5,7 +5,7 @@ import type { JwtPayload } from "jsonwebtoken";
 // create Issue
 const createIssue = async (req: Request, res: Response) => {
   try {
-    // console.log("controler" ,req.user);
+    // console.log("controller" ,req.user);
     const result = await issuesService.createIssueIntoDB(
       req.body,
       req.user as JwtPayload,
@@ -28,7 +28,13 @@ const createIssue = async (req: Request, res: Response) => {
 // get issue
 const getIssues = async (req: Request, res: Response) => {
   try {
-    const result = await issuesService.getAllIssuesFromDB();
+    // get sort item
+    const sort = req.query.sort;
+    const type = req.query.type;
+    const status = req.query.status;
+
+
+    const result = await issuesService.getAllIssuesFromDB(sort as string, type as string, status as string);
 
     res.status(200).json({
       success: true,

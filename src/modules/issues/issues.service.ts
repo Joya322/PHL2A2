@@ -23,13 +23,50 @@ const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
   return result.rows[0];
 };
 
-const getAllIssuesFromDB = async () => {
+const getAllIssuesFromDB = async (
+  sort: string,
+  type: string,
+  status: string,
+) => {
   // query to get all user from issues table
-  const queryForAllIssues = `
+  let queryForAllIssues = `
     SELECT * FROM issues
   `;
 
-  const result = await pool.query(queryForAllIssues);
+  let values: string[] = [];
+
+  if (sort === "newest") {
+    queryForAllIssues += ` ORDER BY created_at DESC`;
+    console.log("newest");
+  } else if (sort === "oldest") {
+    queryForAllIssues += ` ORDER BY created_at ASC`;
+    console.log("oldest");
+  } else if (type === "bug") {
+    queryForAllIssues += ` WHERE type=$1`;
+    values = [type];
+    console.log("bug");
+  } else if (type === "feature_request") {
+    queryForAllIssues += ` WHERE type=$1`;
+    values = [type];
+    console.log("feature_request");
+  } else if (status === "open") {
+    queryForAllIssues += ` WHERE status=$1`;
+    values = [status];
+    console.log("open");
+  } else if (status === "in_progress") {
+    queryForAllIssues += ` WHERE status=$1`;
+    values = [status];
+    console.log("in_progress");
+  } else if (status === "resolved") {
+    queryForAllIssues += ` WHERE status=$1`;
+    values = [status];
+    console.log("resolved");
+  } else {
+    queryForAllIssues += ` ORDER BY created_at DESC`;
+    console.log("newest");
+  }
+
+  const result = await pool.query(queryForAllIssues, values);
 
   if (result.rows.length === 0) {
     throw new Error("No Data Found!");
@@ -59,7 +96,7 @@ const getAllIssuesFromDB = async () => {
 
   const data = result.rows.map((issue) => {
     const currentReporter = reporters.find(
-      (reporter) => reporter.id === issue.reporter_id,
+      (reporter) => reporter?.id === issue?.reporter_id,
     );
 
     const issueWithReporterDetails = {
@@ -70,8 +107,8 @@ const getAllIssuesFromDB = async () => {
       status: issue.status,
       reporter: {
         id: issue.reporter_id,
-        name: currentReporter.name,
-        role: currentReporter.role,
+        name: currentReporter?.name,
+        role: currentReporter?.role,
       },
       created_at: issue.created_at,
       updated_at: issue.updated_at,

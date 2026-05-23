@@ -11,6 +11,6 @@ const router = Router();
 router.post("/", auth(), issuesController.createIssue);
 
 // get issue route
-router.get("/issuesSort", issuesController.getIssues);
+router.get("/", issuesController.getIssues);
 
 export const issuesRoute = router;
