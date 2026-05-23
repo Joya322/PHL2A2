@@ -1,7 +1,7 @@
 import type { JwtPayload } from "jsonwebtoken";
 import { pool } from "../../db";
 import type { ICreateIssue } from "./issues.interface";
-import { title } from "process";
+import { report, title } from "process";
 
 const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
   const { title, description, type, status } = payload;
@@ -37,33 +37,25 @@ const getAllIssuesFromDB = async (
 
   if (sort === "newest") {
     queryForAllIssues += ` ORDER BY created_at DESC`;
-    console.log("newest");
   } else if (sort === "oldest") {
     queryForAllIssues += ` ORDER BY created_at ASC`;
-    console.log("oldest");
   } else if (type === "bug") {
     queryForAllIssues += ` WHERE type=$1`;
     values = [type];
-    console.log("bug");
   } else if (type === "feature_request") {
     queryForAllIssues += ` WHERE type=$1`;
     values = [type];
-    console.log("feature_request");
   } else if (status === "open") {
     queryForAllIssues += ` WHERE status=$1`;
     values = [status];
-    console.log("open");
   } else if (status === "in_progress") {
     queryForAllIssues += ` WHERE status=$1`;
     values = [status];
-    console.log("in_progress");
   } else if (status === "resolved") {
     queryForAllIssues += ` WHERE status=$1`;
     values = [status];
-    console.log("resolved");
   } else {
     queryForAllIssues += ` ORDER BY created_at DESC`;
-    console.log("newest");
   }
 
   const result = await pool.query(queryForAllIssues, values);
@@ -120,7 +112,46 @@ const getAllIssuesFromDB = async (
   return data;
 };
 
+const getSingleIssueFromDB = async (id: any) => {
+  const queryForGettingIssue = `SELECT * FROM issues WHERE id=$1`;
+  const valuesForGettingIssue = [id];
+
+  const issueInfo = await pool.query(
+    queryForGettingIssue,
+    valuesForGettingIssue,
+  );
+
+  const issue = issueInfo.rows[0];
+
+  const queryForGettingReporterDetails = `SELECT * FROM users WHERE id=$1`;
+  const valuesForGettingReporterDetails = [issue.reporter_id];
+
+  const reporterInfo = await pool.query(
+    queryForGettingReporterDetails,
+    valuesForGettingReporterDetails,
+  );
+  const reporter = reporterInfo.rows[0];
+
+  const data = {
+    id: issue?.id,
+    title: issue?.title,
+    description: issue?.description,
+    type: issue?.type,
+    status: issue?.status,
+    reporter: {
+      id: issue?.reporter_id,
+      name: reporter?.name,
+      role: reporter?.role,
+    },
+    created_at: issue.created_at,
+    updated_at: issue.updated_at,
+  };
+
+  return data;
+};
+
 export const issuesService = {
   createIssueIntoDB,
   getAllIssuesFromDB,
+  getSingleIssueFromDB,
 };

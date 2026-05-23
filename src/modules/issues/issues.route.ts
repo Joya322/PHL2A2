@@ -5,12 +5,13 @@ import { issuesService } from "./issues.service";
 
 const router = Router();
 
-
-
 // create issue route
 router.post("/", auth(), issuesController.createIssue);
 
 // get issue route
 router.get("/", issuesController.getIssues);
+
+// get single issue route
+router.get("/:id", issuesController.getSingleIssue);
 
 export const issuesRoute = router;
