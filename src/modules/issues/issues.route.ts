@@ -14,4 +14,7 @@ router.get("/", issuesController.getIssues);
 // get single issue route
 router.get("/:id", issuesController.getSingleIssue);
 
+// update issue route
+router.patch("/:id", auth(), issuesController.updateAIssue);
+
 export const issuesRoute = router;

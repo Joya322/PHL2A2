@@ -150,8 +150,65 @@ const getSingleIssueFromDB = async (id: any) => {
   return data;
 };
 
+const updateAIssueIntoDB = async (
+  payload: ICreateIssue,
+  id: any,
+  user: JwtPayload,
+) => {
+  const { title, description, type, status } = payload;
+  console.log("payload", payload);
+  console.log("id", id);
+  console.log("user", user);
+
+  const queryForGettingIssue = `SELECT * FROM issues WHERE id=$1`;
+  const valuesForGettingIssue = [id];
+
+  const issueInfo = await pool.query(
+    queryForGettingIssue,
+    valuesForGettingIssue,
+  );
+
+  const issue = issueInfo.rows[0];
+
+  if (!issue) {
+    throw new Error(`No issue found for id = ${id}`);
+  }
+  console.log("issue", issue);
+
+  let flag = 1;
+
+  if (user.role !== "maintainer") {
+    flag = 0;
+    if (issue.reporter_id === user.id && issue.status === "open") {
+      flag = 1;
+    } else {
+      throw new Error("Unauthorized Credential!");
+    }
+  }
+
+  const queryForUpdatingIssue = `
+      UPDATE issues SET
+      title = COALESCE($1, title),
+      description = COALESCE($2, description),
+      type = COALESCE($3, type),
+      status = COALESCE($4, status)
+
+      WHERE id=$5 RETURNING *
+  `;
+
+  const valuesForUpdatingIssue = [title, description, type, status, id];
+
+  const result = await pool.query(
+    queryForUpdatingIssue,
+    valuesForUpdatingIssue,
+  );
+
+  console.log(result.rows[0]);
+};
+
 export const issuesService = {
   createIssueIntoDB,
   getAllIssuesFromDB,
   getSingleIssueFromDB,
+  updateAIssueIntoDB,
 };

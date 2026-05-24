@@ -6,7 +6,13 @@ import config from "../../config";
 
 // signup user | create user into DB
 const signupUserIntoDB = async (payload: IUserSignUp) => {
+  const allowedRoles: string[] = ["contributor", "maintainer"];
+
   const { name, email, password, role } = payload;
+
+  if (!allowedRoles.includes(role)) {
+    throw new Error("Invalid role");
+  }
 
   const hashPassword = await bcrypt.hash(password, 9);
 
