@@ -78,13 +78,31 @@ const updateAIssue = async (req: Request, res: Response) => {
     const result = await issuesService.updateAIssueIntoDB(
       req.body,
       req.params.id,
-      req.user as JwtPayload
+      req.user as JwtPayload,
     );
 
     res.status(200).json({
       success: true,
       message: "Issue updated successfully",
-      data: 0,
+      data: result,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      error: error,
+    });
+  }
+};
+
+// delete a issue
+const deleteAIssue = async (req: Request, res: Response) => {
+  try {
+    const result = await issuesService.deleteAIssueFromDB(req.params.id, req.user as JwtPayload);
+
+    res.status(200).json({
+      success: true,
+      message: "Issue deleted successfully",
     });
   } catch (error: any) {
     res.status(500).json({
@@ -100,4 +118,5 @@ export const issuesController = {
   getIssues,
   getSingleIssue,
   updateAIssue,
+  deleteAIssue,
 };

@@ -3,6 +3,7 @@ import { pool } from "../../db";
 import type { ICreateIssue } from "./issues.interface";
 import { report, title } from "process";
 
+// create a issue in db
 const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
   const { title, description, type, status } = payload;
 
@@ -23,6 +24,7 @@ const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
   return result.rows[0];
 };
 
+// get all issues from db
 const getAllIssuesFromDB = async (
   sort: string,
   type: string,
@@ -112,6 +114,7 @@ const getAllIssuesFromDB = async (
   return data;
 };
 
+// get a single issue from db
 const getSingleIssueFromDB = async (id: any) => {
   const queryForGettingIssue = `SELECT * FROM issues WHERE id=$1`;
   const valuesForGettingIssue = [id];
@@ -150,15 +153,17 @@ const getSingleIssueFromDB = async (id: any) => {
   return data;
 };
 
+// update a issue in db
 const updateAIssueIntoDB = async (
   payload: ICreateIssue,
   id: any,
   user: JwtPayload,
 ) => {
   const { title, description, type, status } = payload;
-  console.log("payload", payload);
-  console.log("id", id);
-  console.log("user", user);
+
+  // console.log("payload", payload);
+  // console.log("id", id);
+  // console.log("user", user);
 
   const queryForGettingIssue = `SELECT * FROM issues WHERE id=$1`;
   const valuesForGettingIssue = [id];
@@ -175,12 +180,8 @@ const updateAIssueIntoDB = async (
   }
   console.log("issue", issue);
 
-  let flag = 1;
-
   if (user.role !== "maintainer") {
-    flag = 0;
     if (issue.reporter_id === user.id && issue.status === "open") {
-      flag = 1;
     } else {
       throw new Error("Unauthorized Credential!");
     }
@@ -203,7 +204,24 @@ const updateAIssueIntoDB = async (
     valuesForUpdatingIssue,
   );
 
-  console.log(result.rows[0]);
+  return result.rows[0];
+};
+
+// delete a issue from db
+const deleteAIssueFromDB = async (id: any, user: JwtPayload) => {
+  const query = `DELETE FROM issues WHERE id=$1`;
+  const values = [id];
+
+  if (user.role !== "maintainer") {
+    throw new Error("Unauthorized Credential");
+  }
+
+  const result = await pool.query(`SELECT * FROM issues WHERE id=$1`, [id]);
+
+  if (!result.rows[0]) {
+    throw new Error("Issue not found");
+  }
+  await pool.query(query, values);
 };
 
 export const issuesService = {
@@ -211,4 +229,5 @@ export const issuesService = {
   getAllIssuesFromDB,
   getSingleIssueFromDB,
   updateAIssueIntoDB,
+  deleteAIssueFromDB,
 };
