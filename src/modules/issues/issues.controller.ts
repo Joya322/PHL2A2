@@ -100,7 +100,7 @@ const deleteAIssue = async (req: Request, res: Response) => {
   try {
     const result = await issuesService.deleteAIssueFromDB(req.params.id, req.user as JwtPayload);
 
-    res.status(200).json({
+    res.status(204).json({
       success: true,
       message: "Issue deleted successfully",
     });
