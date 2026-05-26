@@ -63,14 +63,14 @@ const loginUserIntoDB = async (payload: IUserLogin) => {
   const user = userData.rows[0];
 
   if (!user) {
-    throw new Error("Invalid credentials");
+    throw new AppError(401, "Invalid credentials");
   }
 
   // 2. comparing the password
   const isMatchedPassword = await bcrypt.compare(password, user.password);
 
   if (!isMatchedPassword) {
-    throw new Error("Invalid credentials");
+    throw new AppError(401, "Invalid credentials");
   }
 
   // 3. generate token

@@ -14,7 +14,7 @@ const errorHandler = (
   if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
-    errors = err.errors;
+    errors = err.errors ?? null;
   } else if (err instanceof Error) {
     message: err.message;
   }
