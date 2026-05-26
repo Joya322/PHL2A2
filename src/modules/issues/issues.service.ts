@@ -15,13 +15,13 @@ import AppError from "../../utils/AppError";
 const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
   const { title, description, type, status } = payload;
 
-  const { id: reporter_id } = user;
+  const { id } = user;
 
   const query = `
     INSERT INTO issues(title, description, type, status, reporter_id) VALUES ($1, $2, $3, COALESCE($4, 'open'), $5) RETURNING *
   `;
 
-  const values = [title, description, type, status, reporter_id];
+  const values = [title, description, type, status, id];
 
   const result = await pool.query(query, values);
 
@@ -90,7 +90,7 @@ const getAllIssuesFromDB = async (
   const result = await pool.query(queryForAllIssues, values);
 
   if (result.rows.length === 0) {
-    return [];
+    throw new AppError(404, "Issues not found");
   }
 
   const reporters_id = result.rows.map((issue) => {
@@ -112,11 +112,12 @@ const getAllIssuesFromDB = async (
       const reporter = await pool.query(queryForReporterDetails, values);
 
       if (!reporter.rows[0]) {
-        return {
+        const reporterInfo: IReporter = {
           id: reportersId,
           name: "Reporter not exist",
-          role: "",
         };
+
+        return reporterInfo;
       }
 
       const reporterInfo: IReporter = {
@@ -128,8 +129,6 @@ const getAllIssuesFromDB = async (
       return reporterInfo;
     }),
   );
-
-  console.log();
 
   const data = result.rows.map((issue: IIssue) => {
     const currentReporter = reporters.find(
@@ -161,20 +160,29 @@ const getSingleIssueFromDB = async (id: string) => {
   const queryForGettingReporterDetails = `SELECT * FROM users WHERE id=$1`;
   const valuesForGettingReporterDetails = [issue.reporter_id];
 
-  const reporterInfo = await pool.query(
+  const reporter = await pool.query(
     queryForGettingReporterDetails,
     valuesForGettingReporterDetails,
   );
 
-  const { id: reporter_id, name, role } = reporterInfo.rows[0];
+  if (reporter.rows.length === 0) {
+    const reporterInfo: IReporter = {
+      id: issue.reporter_id,
+      name: "Reporter not exist",
+    };
 
-  if (!name && !role) {
-    throw new Error("Reporter not found");
+    return formatIssueWithReporter(issue, reporterInfo);
   }
 
-  const data = formatIssueWithReporter(issue, { id: reporter_id, name, role });
+  const { id: reporter_id, name, role } = reporter.rows[0];
 
-  return data;
+  const reporterInfo: IReporter = {
+    id: reporter_id,
+    name: name,
+    role: role,
+  };
+
+  return formatIssueWithReporter(issue, reporterInfo);
 };
 
 // update a issue in db
