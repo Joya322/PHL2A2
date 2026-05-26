@@ -1,15 +1,17 @@
 import type { JwtPayload } from "jsonwebtoken";
 import { pool } from "../../db";
-import type { ICreateIssue } from "./issues.interface";
-import { report, title } from "process";
+import type {
+  ICreateIssue,
+  IssueSort,
+  IssueStatus,
+  IssueType,
+} from "./issues.interface";
 
 // create a issue in db
 const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
   const { title, description, type, status } = payload;
 
   const { id: reporter_id } = user;
-
-  // console.log(reporter_id);
 
   const query = `
     INSERT INTO issues(title, description, type, status, reporter_id) VALUES ($1, $2, $3, COALESCE($4, 'open'), $5) RETURNING *
@@ -26,9 +28,9 @@ const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
 
 // get all issues from db
 const getAllIssuesFromDB = async (
-  sort: string,
-  type: string,
-  status: string,
+  sort?: IssueSort,
+  type?: IssueType,
+  status?: IssueStatus,
 ) => {
   // query to get all user from issues table
   let queryForAllIssues = `
@@ -36,26 +38,22 @@ const getAllIssuesFromDB = async (
   `;
 
   let values: string[] = [];
+  let conditions: string[] = [];
 
-  if (sort === "newest") {
-    queryForAllIssues += ` ORDER BY created_at DESC`;
-  } else if (sort === "oldest") {
+  if (type) {
+    values.push(type);
+    conditions.push(`type = $${values.length}`);
+  }
+  if (status) {
+    values.push(status);
+    conditions.push(`status = $${values.length}`);
+  }
+  if (conditions.length > 0) {
+    queryForAllIssues += ` WHERE ` + conditions.join(" AND ");
+  }
+
+  if (sort === "oldest") {
     queryForAllIssues += ` ORDER BY created_at ASC`;
-  } else if (type === "bug") {
-    queryForAllIssues += ` WHERE type=$1`;
-    values = [type];
-  } else if (type === "feature_request") {
-    queryForAllIssues += ` WHERE type=$1`;
-    values = [type];
-  } else if (status === "open") {
-    queryForAllIssues += ` WHERE status=$1`;
-    values = [status];
-  } else if (status === "in_progress") {
-    queryForAllIssues += ` WHERE status=$1`;
-    values = [status];
-  } else if (status === "resolved") {
-    queryForAllIssues += ` WHERE status=$1`;
-    values = [status];
   } else {
     queryForAllIssues += ` ORDER BY created_at DESC`;
   }
@@ -63,7 +61,7 @@ const getAllIssuesFromDB = async (
   const result = await pool.query(queryForAllIssues, values);
 
   if (result.rows.length === 0) {
-    throw new Error("No Data Found!");
+    return [];
   }
 
   const reporters_id = result.rows.map((issue) => {
@@ -83,6 +81,10 @@ const getAllIssuesFromDB = async (
       const values = [reportersId];
 
       const reporter = await pool.query(queryForReporterDetails, values);
+
+      if (!reporter) {
+        throw new Error("Reporter not found");
+      }
 
       return reporter.rows[0];
     }),
@@ -115,7 +117,7 @@ const getAllIssuesFromDB = async (
 };
 
 // get a single issue from db
-const getSingleIssueFromDB = async (id: any) => {
+const getSingleIssueFromDB = async (id: string) => {
   const queryForGettingIssue = `SELECT * FROM issues WHERE id=$1`;
   const valuesForGettingIssue = [id];
 
@@ -126,6 +128,10 @@ const getSingleIssueFromDB = async (id: any) => {
 
   const issue = issueInfo.rows[0];
 
+  if (!issue) {
+    throw new Error("Issue not found");
+  }
+
   const queryForGettingReporterDetails = `SELECT * FROM users WHERE id=$1`;
   const valuesForGettingReporterDetails = [issue.reporter_id];
 
@@ -134,6 +140,12 @@ const getSingleIssueFromDB = async (id: any) => {
     valuesForGettingReporterDetails,
   );
   const reporter = reporterInfo.rows[0];
+  
+  console.log(reporter);
+
+  if (!reporter) {
+    throw new Error("Reporter not found");
+  }
 
   const data = {
     id: issue?.id,
@@ -156,14 +168,10 @@ const getSingleIssueFromDB = async (id: any) => {
 // update a issue in db
 const updateAIssueIntoDB = async (
   payload: ICreateIssue,
-  id: any,
+  id: string,
   user: JwtPayload,
 ) => {
   const { title, description, type, status } = payload;
-
-  // console.log("payload", payload);
-  // console.log("id", id);
-  // console.log("user", user);
 
   const queryForGettingIssue = `SELECT * FROM issues WHERE id=$1`;
   const valuesForGettingIssue = [id];
@@ -178,26 +186,40 @@ const updateAIssueIntoDB = async (
   if (!issue) {
     throw new Error(`No issue found for id = ${id}`);
   }
-  console.log("issue", issue);
 
   if (user.role !== "maintainer") {
-    if (issue.reporter_id === user.id && issue.status === "open") {
-    } else {
+    if (!(issue.reporter_id === user.id && issue.status === "open")) {
       throw new Error("Unauthorized Credential!");
     }
   }
 
-  const queryForUpdatingIssue = `
+  let queryForUpdatingIssue = "";
+  let valuesForUpdatingIssue: (string | undefined)[] = [];
+
+  if (user.role === "maintainer") {
+    queryForUpdatingIssue = `
       UPDATE issues SET
       title = COALESCE($1, title),
       description = COALESCE($2, description),
       type = COALESCE($3, type),
-      status = COALESCE($4, status)
+      status = COALESCE($4, status), 
+      updated_at = CURRENT_TIMESTAMP
 
       WHERE id=$5 RETURNING *
   `;
+    valuesForUpdatingIssue = [title, description, type, status, id];
+  } else {
+    queryForUpdatingIssue = `
+      UPDATE issues SET
+      title = COALESCE($1, title),
+      description = COALESCE($2, description),
+      type = COALESCE($3, type),
+      updated_at = CURRENT_TIMESTAMP
 
-  const valuesForUpdatingIssue = [title, description, type, status, id];
+      WHERE id=$5 RETURNING *
+  `;
+    valuesForUpdatingIssue = [title, description, type, id];
+  }
 
   const result = await pool.query(
     queryForUpdatingIssue,
@@ -208,10 +230,7 @@ const updateAIssueIntoDB = async (
 };
 
 // delete a issue from db
-const deleteAIssueFromDB = async (id: any, user: JwtPayload) => {
-  const query = `DELETE FROM issues WHERE id=$1`;
-  const values = [id];
-
+const deleteAIssueFromDB = async (id: string, user: JwtPayload) => {
   if (user.role !== "maintainer") {
     throw new Error("Unauthorized Credential");
   }
@@ -221,7 +240,11 @@ const deleteAIssueFromDB = async (id: any, user: JwtPayload) => {
   if (!result.rows[0]) {
     throw new Error("Issue not found");
   }
+  const query = `DELETE FROM issues WHERE id=$1`;
+  const values = [id];
   await pool.query(query, values);
+
+  return { deleted: true };
 };
 
 export const issuesService = {

@@ -6,11 +6,13 @@ import config from "../../config";
 
 // signup user | create user into DB
 const signupUserIntoDB = async (payload: IUserSignUp) => {
-  const allowedRoles: string[] = ["contributor", "maintainer"];
+  const allowedRoles = ["contributor", "maintainer"];
 
   const { name, email, password, role } = payload;
 
-  if (!allowedRoles.includes(role)) {
+  const userRole = role ?? "contributor";
+
+  if (!allowedRoles.includes(userRole)) {
     throw new Error("Invalid role");
   }
 
@@ -19,7 +21,7 @@ const signupUserIntoDB = async (payload: IUserSignUp) => {
   const query = `
               INSERT INTO users(name, email, password, role) VALUES($1, $2, $3, COALESCE($4, 'contributor')) RETURNING *
           `;
-  const values = [name, email, hashPassword, role];
+  const values = [name, email, hashPassword, userRole];
 
   const result = await pool.query(query, values);
 
@@ -43,14 +45,14 @@ const loginUserIntoDB = async (payload: IUserLogin) => {
   const user = userData.rows[0];
 
   if (!user) {
-    throw new Error("User not found!");
+    throw new Error("Invalid credentials");
   }
 
   // 2. comparing the password
   const isMatchedPassword = await bcrypt.compare(password, user.password);
 
   if (!isMatchedPassword) {
-    throw new Error("User not found!");
+    throw new Error("Invalid credentials");
   }
 
   // 3. generate token
@@ -59,17 +61,22 @@ const loginUserIntoDB = async (payload: IUserLogin) => {
     name: user.name,
     email: user.email,
     role: user.role,
-    created_at: user.created_at,
-    updated_at: user.updated_at,
   };
 
   const accessToken = jwt.sign(jwtPayload, config.jwt_secret_key as string, {
     expiresIn: "20d",
   });
 
-  // console.log(user);
+  const userInfo = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    created_at: user.created_at,
+    updated_at: user.updated_at,
+  };
 
-  return { token: accessToken, user: jwtPayload };
+  return { token: accessToken, user: userInfo };
 };
 
 export const authService = {

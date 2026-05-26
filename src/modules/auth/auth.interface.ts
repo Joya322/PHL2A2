@@ -1,9 +1,11 @@
+import type { ROLES } from "../../types";
+
 // types of signup body
 export interface IUserSignUp {
   name: string;
   email: string;
   password: string;
-  role: string;
+  role?: ROLES;
 }
 
 // types of login body

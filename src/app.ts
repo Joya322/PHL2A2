@@ -3,28 +3,27 @@ import express, {
   type Request,
   type Response,
 } from "express";
-import { userRoute } from "./modules/user/user.route";
-import { authRoute } from "./modules/auth/auth.route";
-import { issuesRoute } from "./modules/issues/issues.route";
+import router from "./routes";
+import cors from "cors";
+import errorHandler from "./middleware/errorHandler";
 
 const app: Application = express();
+
+app.use(cors());
 app.use(express.json());
 
 // get root route
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
-    message: "Assignment 2",
-    author: "Jannat",
+    success: true,
+    message: "DevPulse API Running",
+    data: {
+      author: "Jannat",
+    },
   });
 });
 
-// authentication route
-app.use("/api/auth", authRoute);
-
-// issues route
-app.use("/api/issues", issuesRoute);
-
-// users
-// app.use("/api/users", userRoute);
+app.use("/api", router);
+app.use(errorHandler); 
 
 export default app;

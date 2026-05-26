@@ -6,41 +6,44 @@ import { pool } from "../db";
 const auth = () => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      //   console.log(req.headers.authorization);
       const token = req.headers.authorization;
 
       if (!token) {
-        res.status(401).json({
+        return res.status(401).json({
           success: false,
           message: "Unauthorized Access",
+          errors: "Token not found",
         });
       }
 
-      const decoded = jwt.verify(
-        token as string,
-        config.jwt_secret_key,
-      ) as JwtPayload;
+      const decoded = jwt.verify(token, config.jwt_secret_key) as JwtPayload;
 
-      const query = `
+      const queryForUserData = `
         SELECT * FROM users WHERE email=$1
       `;
-      const values = [decoded.email];
-      const userData = await pool.query(query, values);
+      const valuesForUserData = [decoded.email];
+
+      const userData = await pool.query(queryForUserData, valuesForUserData);
 
       const user = userData.rows[0];
 
       if (!user) {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
           message: "User Not Found",
+          errors: "Invalid user",
         });
       }
 
       req.user = decoded;
 
       next();
-    } catch (error) {
-      next(error);
+    } catch (error: unknown) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid Token",
+        errors: error,
+      });
     }
   };
 };
