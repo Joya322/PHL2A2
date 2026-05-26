@@ -4,6 +4,7 @@ import { pool } from "../../db";
 import type { IUserLogin, IUserSignUp } from "./auth.interface";
 import config from "../../config";
 import AppError from "../../utils/AppError";
+import { selectDataByAColumn } from "../../utils/commonQueries";
 
 // signup user | create user into DB
 const signupUserIntoDB = async (payload: IUserSignUp) => {
@@ -12,14 +13,9 @@ const signupUserIntoDB = async (payload: IUserSignUp) => {
   const { name, email, password, role } = payload;
 
   // checking duplicity of email
-
-  const queryToGetAUser = `SELECT * FROM users WHERE email=$1`;
-
-  const valuesToToGetAUser = [email];
-
   const userAlReadyExist = await pool.query(
-    queryToGetAUser,
-    valuesToToGetAUser,
+    selectDataByAColumn("users", "email"),
+    [email],
   );
 
   if (userAlReadyExist.rows.length > 0) {
@@ -53,12 +49,10 @@ const loginUserIntoDB = async (payload: IUserLogin) => {
   const { email, password } = payload;
 
   // 1. checking if the user exists or not
-  const query = `
-      SELECT * FROM users WHERE email=$1
-    `;
-  const values = [email];
 
-  const userData = await pool.query(query, values);
+  const userData = await pool.query(selectDataByAColumn("users", "email"), [
+    email,
+  ]);
 
   const user = userData.rows[0];
 

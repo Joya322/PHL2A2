@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import config from "../config";
 import { pool } from "../db";
-import { selectUsersByAColumn } from "../utils/commonQueries";
+import { selectDataByAColumn } from "../utils/commonQueries";
 import catchAsync from "../utils/catchAsync";
 import AppError from "../utils/AppError";
 
@@ -16,7 +16,7 @@ const auth = () =>
 
     const decoded = jwt.verify(token, config.jwt_secret_key) as JwtPayload;
 
-    const userData = await pool.query(selectUsersByAColumn("users", "email"), [
+    const userData = await pool.query(selectDataByAColumn("users", "email"), [
       decoded.email,
     ]);
 
