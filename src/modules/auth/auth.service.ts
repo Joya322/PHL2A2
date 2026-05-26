@@ -49,7 +49,6 @@ const loginUserIntoDB = async (payload: IUserLogin) => {
   const { email, password } = payload;
 
   // 1. checking if the user exists or not
-
   const userData = await pool.query(selectDataByAColumn("users", "email"), [
     email,
   ]);
@@ -57,14 +56,14 @@ const loginUserIntoDB = async (payload: IUserLogin) => {
   const user = userData.rows[0];
 
   if (!user) {
-    throw new AppError(401, "Invalid credentials");
+    throw new AppError(401, "Invalid credentials", "Invalid email or password");
   }
 
   // 2. comparing the password
   const isMatchedPassword = await bcrypt.compare(password, user.password);
 
   if (!isMatchedPassword) {
-    throw new AppError(401, "Invalid credentials");
+    throw new AppError(401, "Invalid credentials", "Invalid email or password");
   }
 
   // 3. generate token
