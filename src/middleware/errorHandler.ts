@@ -1,15 +1,28 @@
 import type { NextFunction, Request, Response } from "express";
+import AppError from "../utils/AppError";
 
 const errorHandler = (
-  error: Error,
+  err: Error | AppError,
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  res.status(500).json({
+  let statusCode = 500;
+  let message = "Something went wrong";
+  let errors: unknown = null;
+
+  if (err instanceof AppError) {
+    statusCode = err.statusCode;
+    message = err.message;
+    errors = err.errors;
+  } else if (err instanceof Error) {
+    message: err.message;
+  }
+
+  res.status(statusCode).json({
     success: false,
-    message: error instanceof Error ? error.message : "Something went wrong",
-    errors: error,
+    message,
+    errors,
   });
 };
 

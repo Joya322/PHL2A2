@@ -3,12 +3,30 @@ import jwt from "jsonwebtoken";
 import { pool } from "../../db";
 import type { IUserLogin, IUserSignUp } from "./auth.interface";
 import config from "../../config";
+import AppError from "../../utils/AppError";
 
 // signup user | create user into DB
 const signupUserIntoDB = async (payload: IUserSignUp) => {
   const allowedRoles = ["contributor", "maintainer"];
 
   const { name, email, password, role } = payload;
+
+  // checking duplicity of email
+
+  const queryToGetAUser = `SELECT * FROM users WHERE email=$1`;
+
+  const valuesToToGetAUser = [email];
+
+  const userAlReadyExist = await pool.query(
+    queryToGetAUser,
+    valuesToToGetAUser,
+  );
+
+  if (userAlReadyExist.rows.length > 0) {
+    throw new AppError(409, "User already exists", {
+      email: "This email is already registered",
+    });
+  }
 
   const userRole = role ?? "contributor";
 
@@ -18,16 +36,16 @@ const signupUserIntoDB = async (payload: IUserSignUp) => {
 
   const hashPassword = await bcrypt.hash(password, 9);
 
-  const query = `
+  const queryToCreateAUser = `
               INSERT INTO users(name, email, password, role) VALUES($1, $2, $3, COALESCE($4, 'contributor')) RETURNING *
           `;
-  const values = [name, email, hashPassword, userRole];
+  const valuesToCreateAUser = [name, email, hashPassword, userRole];
 
-  const result = await pool.query(query, values);
+  const result = await pool.query(queryToCreateAUser, valuesToCreateAUser);
 
   delete result.rows[0].password;
 
-  return result;
+  return result.rows[0];
 };
 
 // login user into DB

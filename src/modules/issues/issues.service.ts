@@ -6,6 +6,7 @@ import type {
   IssueStatus,
   IssueType,
 } from "./issues.interface";
+import formatIssueWithReporter from "../../utils/issueFormatter";
 
 // create a issue in db
 const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
@@ -21,7 +22,6 @@ const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
 
   const result = await pool.query(query, values);
 
-  // console.log(result);
 
   return result.rows[0];
 };
@@ -95,22 +95,7 @@ const getAllIssuesFromDB = async (
       (reporter) => reporter?.id === issue?.reporter_id,
     );
 
-    const issueWithReporterDetails = {
-      id: issue.id,
-      title: issue.title,
-      description: issue.description,
-      type: issue.type,
-      status: issue.status,
-      reporter: {
-        id: issue.reporter_id,
-        name: currentReporter?.name,
-        role: currentReporter?.role,
-      },
-      created_at: issue.created_at,
-      updated_at: issue.updated_at,
-    };
-
-    return issueWithReporterDetails;
+    return formatIssueWithReporter(issue, currentReporter);
   });
 
   return data;
@@ -139,28 +124,14 @@ const getSingleIssueFromDB = async (id: string) => {
     queryForGettingReporterDetails,
     valuesForGettingReporterDetails,
   );
-  const reporter = reporterInfo.rows[0];
-  
-  console.log(reporter);
 
-  if (!reporter) {
+  const { name, role } = reporterInfo.rows[0];
+
+  if (!name && !role) {
     throw new Error("Reporter not found");
   }
 
-  const data = {
-    id: issue?.id,
-    title: issue?.title,
-    description: issue?.description,
-    type: issue?.type,
-    status: issue?.status,
-    reporter: {
-      id: issue?.reporter_id,
-      name: reporter?.name,
-      role: reporter?.role,
-    },
-    created_at: issue.created_at,
-    updated_at: issue.updated_at,
-  };
+  const data = formatIssueWithReporter(issue, { name, role });
 
   return data;
 };

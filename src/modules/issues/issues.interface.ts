@@ -1,3 +1,5 @@
+import type { ROLES } from "../../types";
+
 export type IssueType = "bug" | "feature_request";
 
 export type IssueStatus = "open" | "in_progress" | "resolved";
@@ -20,4 +22,8 @@ export interface IIssue {
   reporter_id: number;
   created_at: Date;
   updated_at: Date;
+}
+export interface IReporter {
+  name: string;
+  role: ROLES;
 }
