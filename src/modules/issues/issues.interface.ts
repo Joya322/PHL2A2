@@ -24,6 +24,7 @@ export interface IIssue {
   updated_at: Date;
 }
 export interface IReporter {
+  id: number,
   name: string;
-  role: ROLES;
+  role?: ROLES;
 }

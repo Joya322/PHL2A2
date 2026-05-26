@@ -9,8 +9,8 @@ const formatIssueWithReporter = (issue: IIssue, reporter: IReporter) => {
     status: issue.status,
     reporter: {
       id: issue.reporter_id,
-      name: reporter.name,
-      role: reporter.role,
+      name: reporter?.name,
+      role: reporter?.role,
     },
     created_at: issue.created_at,
     updated_at: issue.updated_at,

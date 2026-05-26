@@ -2,11 +2,14 @@ import type { JwtPayload } from "jsonwebtoken";
 import { pool } from "../../db";
 import type {
   ICreateIssue,
+  IIssue,
+  IReporter,
   IssueSort,
   IssueStatus,
   IssueType,
 } from "./issues.interface";
 import formatIssueWithReporter from "../../utils/issueFormatter";
+import AppError from "../../utils/AppError";
 
 // create a issue in db
 const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
@@ -22,7 +25,6 @@ const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
 
   const result = await pool.query(query, values);
 
-
   return result.rows[0];
 };
 
@@ -32,9 +34,36 @@ const getAllIssuesFromDB = async (
   type?: IssueType,
   status?: IssueStatus,
 ) => {
+  const allowedSortValues = ["newest", "oldest"];
+
+  const allowedIssueTypes = ["bug", "feature_request"];
+
+  const allowedIssueStatuses = ["open", "in_progress", "resolved"];
+
+  // validate sort
+  if (sort && !allowedSortValues.includes(sort)) {
+    throw new AppError(400, "Invalid sort value", {
+      sort: "Allowed values are newest, oldest",
+    });
+  }
+
+  // validate type
+  if (type && !allowedIssueTypes.includes(type)) {
+    throw new AppError(400, "Invalid issue type", {
+      type: "Allowed values are bug, feature_request",
+    });
+  }
+
+  // validate status
+  if (status && !allowedIssueStatuses.includes(status)) {
+    throw new AppError(400, "Invalid issue status", {
+      status: "Allowed values are open, in_progress, resolved",
+    });
+  }
+
   // query to get all user from issues table
   let queryForAllIssues = `
-    SELECT * FROM issues
+  SELECT * FROM issues
   `;
 
   let values: string[] = [];
@@ -73,29 +102,41 @@ const getAllIssuesFromDB = async (
 
   // find reporters
   const reporters = await Promise.all(
-    optimizedReportersId.map(async (reportersId) => {
+    optimizedReportersId.map(async (reportersId: number) => {
       // query to get reporter details
       const queryForReporterDetails = `
       SELECT * FROM users WHERE id=$1
-    `;
+      `;
       const values = [reportersId];
 
       const reporter = await pool.query(queryForReporterDetails, values);
 
-      if (!reporter) {
-        throw new Error("Reporter not found");
+      if (!reporter.rows[0]) {
+        return {
+          id: reportersId,
+          name: "Reporter not exist",
+          role: "",
+        };
       }
 
-      return reporter.rows[0];
+      const reporterInfo: IReporter = {
+        id: reporter.rows[0].id,
+        name: reporter.rows[0].name,
+        role: reporter.rows[0].role,
+      };
+
+      return reporterInfo;
     }),
   );
 
-  const data = result.rows.map((issue) => {
+  console.log();
+
+  const data = result.rows.map((issue: IIssue) => {
     const currentReporter = reporters.find(
-      (reporter) => reporter?.id === issue?.reporter_id,
+      (reporter) => reporter.id === issue.reporter_id,
     );
 
-    return formatIssueWithReporter(issue, currentReporter);
+    return formatIssueWithReporter(issue, currentReporter as IReporter);
   });
 
   return data;
@@ -111,10 +152,10 @@ const getSingleIssueFromDB = async (id: string) => {
     valuesForGettingIssue,
   );
 
-  const issue = issueInfo.rows[0];
+  const issue: IIssue = issueInfo.rows[0];
 
   if (!issue) {
-    throw new Error("Issue not found");
+    throw new AppError(404, "Issue not found");
   }
 
   const queryForGettingReporterDetails = `SELECT * FROM users WHERE id=$1`;
@@ -125,13 +166,13 @@ const getSingleIssueFromDB = async (id: string) => {
     valuesForGettingReporterDetails,
   );
 
-  const { name, role } = reporterInfo.rows[0];
+  const { id: reporter_id, name, role } = reporterInfo.rows[0];
 
   if (!name && !role) {
     throw new Error("Reporter not found");
   }
 
-  const data = formatIssueWithReporter(issue, { name, role });
+  const data = formatIssueWithReporter(issue, { id: reporter_id, name, role });
 
   return data;
 };
