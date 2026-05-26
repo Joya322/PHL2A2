@@ -193,6 +193,24 @@ const updateAIssueIntoDB = async (
 ) => {
   const { title, description, type, status } = payload;
 
+  const allowedIssueTypes = ["bug", "feature_request"];
+
+  const allowedIssueStatuses = ["open", "in_progress", "resolved"];
+
+  // validate type
+  if (type && !allowedIssueTypes.includes(type)) {
+    throw new AppError(400, "Invalid issue type", {
+      type: "Allowed values are bug, feature_request",
+    });
+  }
+
+  // validate status
+  if (status && !allowedIssueStatuses.includes(status)) {
+    throw new AppError(400, "Invalid issue status", {
+      status: "Allowed values are open, in_progress, resolved",
+    });
+  }
+
   const queryForGettingIssue = `SELECT * FROM issues WHERE id=$1`;
   const valuesForGettingIssue = [id];
 
@@ -204,12 +222,14 @@ const updateAIssueIntoDB = async (
   const issue = issueInfo.rows[0];
 
   if (!issue) {
-    throw new Error(`No issue found for id = ${id}`);
+    throw new AppError(404, "Issue not found to update");
   }
 
   if (user.role !== "maintainer") {
     if (!(issue.reporter_id === user.id && issue.status === "open")) {
-      throw new Error("Unauthorized Credential!");
+      throw new AppError(403, "Forbidden action", {
+        status: "A contributor can only update own issue if status is open",
+      });
     }
   }
 
@@ -218,26 +238,31 @@ const updateAIssueIntoDB = async (
 
   if (user.role === "maintainer") {
     queryForUpdatingIssue = `
-      UPDATE issues SET
-      title = COALESCE($1, title),
-      description = COALESCE($2, description),
-      type = COALESCE($3, type),
-      status = COALESCE($4, status), 
-      updated_at = CURRENT_TIMESTAMP
-
-      WHERE id=$5 RETURNING *
-  `;
+    UPDATE issues SET
+    title = COALESCE($1, title),
+    description = COALESCE($2, description),
+    type = COALESCE($3, type),
+    status = COALESCE($4, status), 
+    updated_at = CURRENT_TIMESTAMP
+  
+    WHERE id=$5 RETURNING *
+    `;
     valuesForUpdatingIssue = [title, description, type, status, id];
   } else {
+    if ("status" in payload) {
+      throw new AppError(400, "Invalid update fields", {
+        status: "Only maintainer can update issue status",
+      });
+    }
     queryForUpdatingIssue = `
-      UPDATE issues SET
-      title = COALESCE($1, title),
-      description = COALESCE($2, description),
-      type = COALESCE($3, type),
-      updated_at = CURRENT_TIMESTAMP
-
-      WHERE id=$5 RETURNING *
-  `;
+    UPDATE issues SET
+    title = COALESCE($1, title),
+    description = COALESCE($2, description),
+    type = COALESCE($3, type),
+    updated_at = CURRENT_TIMESTAMP
+    
+    WHERE id=$4 RETURNING *
+    `;
     valuesForUpdatingIssue = [title, description, type, id];
   }
 
@@ -252,19 +277,24 @@ const updateAIssueIntoDB = async (
 // delete a issue from db
 const deleteAIssueFromDB = async (id: string, user: JwtPayload) => {
   if (user.role !== "maintainer") {
-    throw new Error("Unauthorized Credential");
+    throw new AppError(
+      401,
+      "Unauthorized Credential",
+      "status: Only maintainer can delete a issue",
+    );
   }
 
   const result = await pool.query(`SELECT * FROM issues WHERE id=$1`, [id]);
 
   if (!result.rows[0]) {
-    throw new Error("Issue not found");
+    throw new AppError(404, "Issue not found");
   }
+
   const query = `DELETE FROM issues WHERE id=$1`;
   const values = [id];
-  await pool.query(query, values);
+  const deleted = await pool.query(query, values);
 
-  return { deleted: true };
+  return deleted;
 };
 
 export const issuesService = {
