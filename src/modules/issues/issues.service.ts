@@ -10,12 +10,27 @@ import type {
 } from "./issues.interface";
 import formatIssueWithReporter from "../../utils/issueFormatter";
 import AppError from "../../utils/AppError";
+import { USER_ROLE } from "../../types";
 
 // create a issue in db
 const createIssueIntoDB = async (payload: ICreateIssue, user: JwtPayload) => {
   const { title, description, type, status } = payload;
 
-  const { id } = user;
+  const allowedIssueTypes = ["bug", "feature_request"];
+
+  // validate type
+  if (type && !allowedIssueTypes.includes(type)) {
+    throw new AppError(400, "Invalid issue type", {
+      type: "Allowed values are bug, feature_request",
+    });
+  }
+
+  const { id, role } = user;
+  if (status && role !== USER_ROLE.maintainer) {
+    throw new AppError(403, "Forbidden action", {
+      status: "A contributor can not input status of an issue",
+    });
+  }
 
   const query = `
     INSERT INTO issues(title, description, type, status, reporter_id) VALUES ($1, $2, $3, COALESCE($4, 'open'), $5) RETURNING *
@@ -90,7 +105,7 @@ const getAllIssuesFromDB = async (
   const result = await pool.query(queryForAllIssues, values);
 
   if (result.rows.length === 0) {
-    throw new AppError(404, "Issues not found");
+    throw new AppError(404, "No data found");
   }
 
   const reporters_id = result.rows.map((issue) => {
