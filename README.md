@@ -1,6 +1,6 @@
 # DevPulse
 
-### Live link: [Link Text](https://www.example.com)
+### Live link: [Dev-Pulse](https://dev-pulse-delta-eight.vercel.app/)
 
 ## Features
 
